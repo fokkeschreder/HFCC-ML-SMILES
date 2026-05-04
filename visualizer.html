@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radical SMILES Visualizer</title>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <!-- RDKit.js for accurate chemical rendering including radical dots -->
+    <script src="https://unpkg.com/@rdkit/rdkit/dist/RDKit_minimal.js"></script>
+
+    <style>
+        :root[data-theme="dark"] {
+            --bg-color: #0f111a;
+            --text-color: #e2e8f0;
+            --accent-color: #3b82f6;
+            --card-bg: rgba(30, 41, 59, 0.6);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --card-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            --svg-filter: invert(0.9) hue-rotate(180deg) contrast(1.2);
+            --bg-gradient: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(225,39%,30%,0.2) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(339,49%,30%,0.2) 0, transparent 50%);
+            --header-gradient: linear-gradient(135deg, #60a5fa, #c084fc);
+        }
+
+        :root[data-theme="light"] {
+            --bg-color: #f8fafc;
+            --text-color: #1e293b;
+            --accent-color: #2563eb;
+            --card-bg: rgba(255, 255, 255, 0.7);
+            --card-border: rgba(0, 0, 0, 0.05);
+            --card-shadow: 0 4px 30px rgba(0, 0, 0, 0.05);
+            --svg-filter: none;
+            --bg-gradient: radial-gradient(at 0% 0%, hsla(210,100%,95%,1) 0, transparent 50%), radial-gradient(at 50% 0%, hsla(250,100%,95%,0.5) 0, transparent 50%), radial-gradient(at 100% 0%, hsla(300,100%,95%,0.5) 0, transparent 50%);
+            --header-gradient: linear-gradient(135deg, #2563eb, #9333ea);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            background-image: var(--bg-gradient);
+            color: var(--text-color);
+            margin: 0;
+            padding: 40px 20px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: background-color 0.4s, color 0.4s;
+        }
+
+        /* Theme Toggle Button */
+        .theme-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-color);
+            padding: 10px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-weight: 600;
+            box-shadow: var(--card-shadow);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .theme-toggle:hover {
+            transform: translateY(-2px);
+            border-color: var(--accent-color);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            margin-top: 20px;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            background: var(--header-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        p {
+            color: #94a3b8;
+            font-size: 1.1rem;
+        }
+        :root[data-theme="light"] p {
+            color: #64748b;
+        }
+
+        .upload-container {
+            margin-bottom: 50px;
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .upload-box {
+            border: 2px dashed #94a3b8;
+            border-radius: 16px;
+            padding: 40px 20px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-box:hover, .upload-box.dragover {
+            border-color: var(--accent-color);
+            background: var(--card-bg);
+            transform: translateY(-2px);
+        }
+
+        .upload-box input[type="file"] {
+            display: none;
+        }
+
+        .upload-label {
+            display: inline-block;
+            background: var(--accent-color);
+            color: white;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .upload-label:hover {
+            filter: brightness(1.1);
+        }
+
+        #grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+            width: 100%;
+            max-width: 1400px;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .molecule-card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: var(--card-shadow);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s;
+        }
+
+        .molecule-card:hover {
+            transform: translateY(-8px) scale(1.02);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15), 0 0 15px rgba(59, 130, 246, 0.15);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        .molecule-svg-container {
+            width: 100%;
+            height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .molecule-svg-container svg {
+            max-width: 100%;
+            max-height: 100%;
+            /* The CSS invert trick perfectly converts RDKit's light SVG to dark mode without losing colors! */
+            filter: var(--svg-filter);
+            transition: filter 0.4s;
+        }
+
+        .molecule-info {
+            margin-top: 16px;
+            text-align: center;
+            width: 100%;
+        }
+
+        .job-id {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-color);
+            margin-bottom: 4px;
+            word-break: break-all;
+        }
+
+        .smiles-string {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #64748b;
+            word-break: break-all;
+            background: rgba(128, 128, 128, 0.1);
+            padding: 6px;
+            border-radius: 4px;
+            display: block;
+        }
+
+        #loading {
+            display: none;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()">
+        <svg id="theme-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Moon icon by default for dark theme -->
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+        <span id="theme-text">Light Mode</span>
+    </button>
+
+    <header>
+        <h1>Radical SMILES Visualizer</h1>
+        <p>Upload your dataset_smiles.txt to render the 2D structures</p>
+    </header>
+
+    <div class="upload-container">
+        <div class="upload-box" id="drop-zone">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom: 10px;">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <h3 id="upload-title">Drag & Drop dataset_smiles.txt</h3>
+            <p id="upload-sub">or</p>
+            <label class="upload-label">
+                <span id="upload-btn-text">Browse Files</span>
+                <input type="file" id="file-input" accept=".txt,.csv">
+            </label>
+        </div>
+    </div>
+    
+    <div id="loading">Initializing RDKit and processing...</div>
+
+    <div id="grid-container"></div>
+
+    <script>
+        let RDKitModule = null;
+        let isDarkMode = true;
+
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const gridContainer = document.getElementById('grid-container');
+        const loadingIndicator = document.getElementById('loading');
+
+        // Theme Toggle Logic
+        function toggleTheme() {
+            const html = document.documentElement;
+            const themeText = document.getElementById('theme-text');
+            const themeIcon = document.getElementById('theme-icon');
+
+            if (isDarkMode) {
+                html.setAttribute('data-theme', 'light');
+                themeText.textContent = 'Dark Mode';
+                // Sun icon
+                themeIcon.innerHTML = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+            } else {
+                html.setAttribute('data-theme', 'dark');
+                themeText.textContent = 'Light Mode';
+                // Moon icon
+                themeIcon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+            }
+            isDarkMode = !isDarkMode;
+        }
+
+        // Initialize RDKit once on page load
+        initRDKitModule().then(function(instance) {
+            RDKitModule = instance;
+            console.log("RDKit initialized");
+        });
+
+        // Handle File Selection
+        fileInput.addEventListener('change', handleFile);
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFile();
+            }
+        });
+
+        function handleFile() {
+            if (!RDKitModule) {
+                alert("Please wait a moment for RDKit to finish downloading/initializing, then try again.");
+                return;
+            }
+
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            loadingIndicator.style.display = 'block';
+            gridContainer.innerHTML = '';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                
+                // Allow UI to update loading text before freezing for computation
+                setTimeout(() => {
+                    processData(content);
+                    loadingIndicator.style.display = 'none';
+
+                    // Clean up UI
+                    document.querySelector('.upload-container').style.marginBottom = '20px';
+                    dropZone.style.padding = '20px';
+                    document.getElementById('upload-title').style.display = 'none';
+                    document.getElementById('upload-sub').style.display = 'none';
+                    dropZone.querySelector('svg').style.display = 'none';
+                    document.getElementById('upload-btn-text').textContent = 'Load a different file';
+                }, 50);
+            };
+            reader.readAsText(file);
+        }
+
+        function processData(csvText) {
+            const lines = csvText.split('\n');
+            if (lines.length < 2) return;
+
+            let count = 0;
+            
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (!line) continue;
+
+                const parts = line.split(',');
+                if (parts.length >= 2) {
+                    const jobId = parts[0].trim();
+                    const smiles = parts[1].trim();
+                    
+                    createMoleculeCard(jobId, smiles, count);
+                    count++;
+                }
+            }
+        }
+
+        function createMoleculeCard(jobId, smiles, index) {
+            // Create card elements
+            const card = document.createElement('div');
+            card.className = 'molecule-card';
+            
+            const svgContainer = document.createElement('div');
+            svgContainer.className = 'molecule-svg-container';
+            
+            const info = document.createElement('div');
+            info.className = 'molecule-info';
+            
+            const title = document.createElement('div');
+            title.className = 'job-id';
+            title.textContent = jobId;
+            
+            const smilesText = document.createElement('div');
+            smilesText.className = 'smiles-string';
+            smilesText.textContent = smiles;
+            
+            info.appendChild(title);
+            info.appendChild(smilesText);
+            
+            card.appendChild(svgContainer);
+            card.appendChild(info);
+            
+            gridContainer.appendChild(card);
+
+            // Draw molecule with RDKit
+            try {
+                const mol = RDKitModule.get_mol(smiles);
+                if (mol) {
+                    // Set drawing options to make it look nice (transparent background)
+                    const drawingOpts = {
+                        width: 250,
+                        height: 250,
+                        clearBackground: false,
+                        addAtomIndices: false
+                    };
+                    const svg = mol.get_svg_with_highlights(JSON.stringify(drawingOpts));
+                    svgContainer.innerHTML = svg;
+                    mol.delete(); // Prevent memory leaks
+                } else {
+                    throw new Error("Invalid SMILES");
+                }
+            } catch(e) {
+                console.error('Error parsing SMILES:', smiles, e);
+                svgContainer.innerHTML = '<div style="color: #f87171; font-weight: 600;">Parsing Error</div>';
+            }
+        }
+    </script>
+</body>
+</html>

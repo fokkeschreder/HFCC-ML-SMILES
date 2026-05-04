@@ -1,0 +1,4 @@
+__pycache__/
+.env
+orca_inputs/
+.vscode/
