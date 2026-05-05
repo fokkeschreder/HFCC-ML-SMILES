@@ -1,5 +1,6 @@
 import os
 import random
+import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import AllChem
 
@@ -71,7 +72,7 @@ def get_unique_radicals(alkane_mols):
                 
     return radical_mols
 
-def write_orca_input(smi, mol, filename):
+def write_orca_inputs(smi, rad_id, output_dir='orca_inputs'):
     canonical_mol = Chem.MolFromSmiles(smi)
     canonical_mol = Chem.AddHs(canonical_mol)
     
@@ -99,21 +100,32 @@ def write_orca_input(smi, mol, filename):
                     pos_h = conf.GetAtomPosition(nbr.GetIdx())
                     xyz_lines.append(f"H {pos_h.x:10.6f} {pos_h.y:10.6f} {pos_h.z:10.6f}")
                     
-    basename = os.path.basename(filename).replace('.inp', '')
-    orca_inp = f"""! wB97X-D 6-31G* Opt
+    opt_inp = f"""! UKS wB97X-D3 6-31G* Opt
+%maxcore 1500
+%geom
+  MaxIter 150
+end
+
 * xyz 0 2
 {chr(10).join(xyz_lines)}
 *
-
-$new_job
-! wB97X-D3 IGLO-II EPRNMR
-%mdci
-  EPR_Nuc = all H
-end
-* xyzfile 0 2 {basename}.xyz
 """
-    with open(filename, 'w') as f:
-        f.write(orca_inp)
+    
+    epr_inp = f"""! UKS wB97X-D3 IGLO-II
+%maxcore 3000
+
+
+* xyzfile 0 2 {rad_id}_opt.xyz
+
+%eprnmr
+  Nuclei = all H {{aiso, adip}}
+end
+"""
+    with open(os.path.join(output_dir, f"{rad_id}_opt.inp"), 'w') as f:
+        f.write(opt_inp)
+    with open(os.path.join(output_dir, f"{rad_id}_epr.inp"), 'w') as f:
+        f.write(epr_inp)
+        
     return True
 
 def main():
@@ -127,16 +139,17 @@ def main():
     print(f"Generated {len(radicals)} unique radicals.")
     
     success_count = 0
-    with open('dataset_smiles.txt', 'w') as f:
-        f.write("job_id,smiles\n")
-        for idx, (smi, mol) in enumerate(radicals):
-            safe_smi = smi.replace('/', '_').replace('\\', '_')
-            filename = f"orca_inputs/{safe_smi}.inp"
-            if write_orca_input(smi, mol, filename):
-                f.write(f"{safe_smi},{smi}\n")
-                success_count += 1
-                
-    print(f"Successfully wrote {success_count} ORCA input files.")
+    records = []
+    
+    for idx, (smi, mol) in enumerate(radicals):
+        rad_id = f"rad_{idx+1:04d}"
+        if write_orca_inputs(smi, rad_id, 'orca_inputs'):
+            records.append({'ID': rad_id, 'SMILES': smi, 'Status': 'Pending'})
+            success_count += 1
+            
+    df = pd.DataFrame(records)
+    df.to_csv('dataset_master.csv', index=False)
+    print(f"Successfully wrote {success_count} pairs of ORCA input files and dataset_master.csv.")
 
 if __name__ == '__main__':
     main()

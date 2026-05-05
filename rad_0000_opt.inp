@@ -1,0 +1,9 @@
+! UKS wB97X-D3 6-31G* Opt
+%maxcore 1500
+%geom
+  MaxIter 150
+end
+
+* xyz 0 2
+[COORDINATES]
+*

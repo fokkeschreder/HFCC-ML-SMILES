@@ -1,0 +1,9 @@
+! UKS wB97X-D3 IGLO-II
+%maxcore 3000
+
+
+* xyzfile 0 2 [.xyz file from the geometry optimization]
+
+%eprnmr
+  Nuclei = all H {aiso, adip}
+end
