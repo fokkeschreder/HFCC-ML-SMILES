@@ -6,7 +6,6 @@ def process_out_file(out_filepath):
     with open(out_filepath, 'r') as f:
         text = f.read()
 
-    # 1. Parse coordinates to map H to C
     atoms = []
     in_coords = False
     for line in text.split('\n'):
@@ -25,8 +24,7 @@ def process_out_file(out_filepath):
     if not atoms:
         return None
 
-    # Map H index to C index
-    mapping = {} # H_idx -> C_idx
+    mapping = {}
     num_carbons = 0
     current_carbon_idx = -1
     for atom_idx, symbol in enumerate(atoms):
@@ -37,7 +35,6 @@ def process_out_file(out_filepath):
             if current_carbon_idx >= 0:
                 mapping[atom_idx] = current_carbon_idx
 
-    # 2. Extract A(iso) for protons
     hfccs = {}
     nuclei_blocks = text.split('Nucleus ')[1:]
     for block in nuclei_blocks:
@@ -45,11 +42,6 @@ def process_out_file(out_filepath):
         if 'H :' in lines[0]:
             nuc_str = lines[0].split('H :')[0].strip()
             try:
-                nuc_idx = int(nuc_str) - 1 # ORCA might use 1-based in printing but 0-based in logic? 
-                # Wait, earlier nuc_str was "1", "2", "4", "6". 
-                # Is "1H" index 1 or atom #1 (which is index 0)? 
-                # Let's check: atom list was C, H, H -> indices 0, 1, 2. ORCA printed 1H, 2H. So the number is the 0-based index! 
-                # "18H" means atom index 18.
                 nuc_idx = int(nuc_str)
             except ValueError:
                 continue
@@ -58,7 +50,6 @@ def process_out_file(out_filepath):
             if aiso_match:
                 hfccs[nuc_idx] = float(aiso_match.group(1))
 
-    # 3. Average H values for each C
     carbon_hfccs = {i: [] for i in range(num_carbons)}
     for h_idx, a_mhz in hfccs.items():
         if h_idx in mapping:
@@ -70,11 +61,10 @@ def process_out_file(out_filepath):
         vals = carbon_hfccs[c_idx]
         if vals:
             avg = sum(vals) / len(vals)
-            # Remove trailing zeros, up to 4 decimals
             val_str = str(round(avg, 4))
             hfcc_string_list.append(val_str)
         else:
-            hfcc_string_list.append("0") # or perhaps "0.0"
+            hfcc_string_list.append("0")
 
     hfcc_string = "[" + " ".join(hfcc_string_list) + "]"
     return hfcc_string

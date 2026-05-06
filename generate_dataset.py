@@ -14,7 +14,6 @@ def generate_random_alkane(max_atoms=8):
             target = random.choice(valid_targets)
             mol.AddBond(target, i, Chem.BondType.SINGLE)
     
-    # 30% chance to add a ring if enough atoms
     if random.random() < 0.3 and mol.GetNumAtoms() >= 4:
         valid_targets = [a.GetIdx() for a in mol.GetAtoms() if a.GetDegree() < 4]
         if len(valid_targets) >= 2:
@@ -47,13 +46,12 @@ def get_unique_radicals(alkane_mols):
     radical_mols = []
     
     for mol in alkane_mols:
-        # Use canonical rank to find unique atoms (symmetry classes)
         ranks = list(Chem.CanonicalRankAtoms(mol, breakTies=False))
         unique_ranks = set()
         
         for atom in mol.GetAtoms():
             if atom.GetSymbol() != 'C': continue
-            if atom.GetTotalNumHs() == 0: continue # Quaternary carbons have no H to lose
+            if atom.GetTotalNumHs() == 0: continue
             
             rank = ranks[atom.GetIdx()]
             if rank in unique_ranks:
@@ -76,7 +74,6 @@ def write_orca_inputs(smi, rad_id, output_dir='orca_inputs'):
     canonical_mol = Chem.MolFromSmiles(smi)
     canonical_mol = Chem.AddHs(canonical_mol)
     
-    # 3D Embed
     params = AllChem.ETKDGv3()
     params.randomSeed = 42
     res = AllChem.EmbedMolecule(canonical_mol, params)
@@ -89,7 +86,6 @@ def write_orca_inputs(smi, rad_id, output_dir='orca_inputs'):
             
     conf = canonical_mol.GetConformer()
     
-    # Build custom xyz string with C followed immediately by its attached H's
     xyz_lines = []
     for atom in canonical_mol.GetAtoms():
         if atom.GetSymbol() == 'C':

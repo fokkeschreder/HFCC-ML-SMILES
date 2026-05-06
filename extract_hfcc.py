@@ -117,8 +117,6 @@ def main():
                     else:
                         print(f"Warning: Could not parse HFCCs for {job_id}")
                 else:
-                    # We do not print skipping messages to avoid flooding the console
-                    # if the user only ran a subset of ORCA jobs.
                     pass
                     
     if results:
