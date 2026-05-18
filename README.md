@@ -1,10 +1,8 @@
 # HFCC ML SMILES
 
-A machine learning pipeline for predicting isotropic proton hyperfine coupling constants (HFCC) in hydrocarbon radicals directly from SMILES strings using Graph Convolutional Networks (GCN).
+A machine learning model trained for predicting isotropic proton hyperfine coupling constants (HFCC) in hydrocarbon radicals directly from SMILES strings using Graph Convolutional Networks (GCN).
 
 ## Overview
-
-This repository contains a comprehensive workflow for generating datasets and training a graph neural network model to predict Electron Paramagnetic Resonance (EPR) hyperfine coupling constants. The pipeline handles:
 
 1. **Dataset Generation**: Creating 3D geometries of alkyl and alkenyl radicals from SMILES strings using RDKit's ETKDG algorithm.
 2. **Quantum Chemistry Calculations**: Generating ORCA input files for geometry optimization (wB97X-D/6-31G*) and EPR property calculations (wB97X-D3/IGLO-II).
@@ -26,17 +24,8 @@ This repository contains a comprehensive workflow for generating datasets and tr
 
 ## Requirements
 
-To run the machine learning pipeline, you need the following Python packages:
 *   `torch`
 *   `torch_geometric`
 *   `rdkit`
 *   `pandas`
 *   `matplotlib` (for generating training curves/scatter plots)
-
-To generate new datasets, you also need the ORCA Quantum Chemistry program installed and accessible.
-
-## Usage
-
-1. **Dataset Generation** (Optional): Run the `generate_*.py` scripts to create ORCA inputs, run the calculations, and then use `extract_hfcc.py` and `generate_epr_database.py` to compile the dataset.
-2. **Training**: Execute `python train.py` to train the GCN model on the `epr_dataset.csv`. This will save the best weights to `best_model.pth`.
-3. **Prediction**: Use `predict.py` to run inference with the trained model on new structures.
