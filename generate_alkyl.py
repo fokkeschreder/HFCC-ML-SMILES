@@ -70,7 +70,7 @@ def get_unique_radicals(alkane_mols):
                 
     return radical_mols
 
-def write_orca_inputs(smi, rad_id, output_dir='orca_inputs'):
+def write_orca_inputs(smi, rad_id, output_dir='orca_alkyl'):
     canonical_mol = Chem.MolFromSmiles(smi)
     canonical_mol = Chem.AddHs(canonical_mol)
     
@@ -125,7 +125,7 @@ end
     return True
 
 def main():
-    os.makedirs('orca_inputs', exist_ok=True)
+    os.makedirs('orca_alkyl', exist_ok=True)
     print("Generating base alkanes...")
     alkanes = get_unique_alkanes(100)
     print(f"Generated {len(alkanes)} alkanes.")
@@ -137,15 +137,18 @@ def main():
     success_count = 0
     records = []
     
-    for idx, (smi, mol) in enumerate(radicals):
-        rad_id = f"rad_{idx+1:04d}"
-        if write_orca_inputs(smi, rad_id, 'orca_inputs'):
-            records.append({'ID': rad_id, 'SMILES': smi, 'Status': 'Pending'})
-            success_count += 1
+    with open('dataset_alkyl.txt', 'w') as f:
+        f.write("job_id,smiles\n")
+        for idx, (smi, mol) in enumerate(radicals):
+            rad_id = f"rad_{idx+1:04d}"
+            if write_orca_inputs(smi, rad_id, 'orca_alkyl'):
+                f.write(f"{rad_id},{smi}\n")
+                records.append({'ID': rad_id, 'SMILES': smi, 'Status': 'Pending'})
+                success_count += 1
             
     df = pd.DataFrame(records)
-    df.to_csv('dataset_master.csv', index=False)
-    print(f"Successfully wrote {success_count} pairs of ORCA input files and dataset_master.csv.")
+    df.to_csv('dataset_master_alkyl.csv', index=False)
+    print(f"Successfully wrote {success_count} pairs of ORCA input files, dataset_alkyl.txt, and dataset_master_alkyl.csv.")
 
 if __name__ == '__main__':
     main()
