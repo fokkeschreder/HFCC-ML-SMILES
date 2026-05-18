@@ -28,4 +28,4 @@ A machine learning model trained for predicting isotropic proton hyperfine coupl
 *   `torch_geometric`
 *   `rdkit`
 *   `pandas`
-*   `matplotlib` (for generating training curves/scatter plots)
+*   `matplotlib`
